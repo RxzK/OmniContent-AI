@@ -39,6 +39,7 @@ async function clickButtonOnPage(url, buttonText) {
     console.log(`[Oracle Vision] Navigating to ${url}`);
     const { browser, page } = await launchBrowser(true); // Use profile for auth
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.bringToFront(); // Force focus
 
     console.log(`[Oracle Vision] Searching for "${buttonText}" button...`);
 
