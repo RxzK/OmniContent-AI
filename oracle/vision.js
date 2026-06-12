@@ -36,23 +36,35 @@ async function openURL(url) {
 }
 
 async function clickButtonOnPage(url, buttonText) {
-    console.log(`[Oracle Vision] Navigating to ${url} and clicking "${buttonText}"`);
+    console.log(`[Oracle Vision] Navigating to ${url}`);
     const { browser, page } = await launchBrowser(true); // Use profile for auth
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Find and click button by text
+    console.log(`[Oracle Vision] Searching for "${buttonText}" button...`);
+
+    // Improved search for button or submit input
     const clicked = await page.evaluate((text) => {
-        const buttons = Array.from(document.querySelectorAll('button, a'));
-        const target = buttons.find(el => el.textContent.trim().includes(text));
-        if (target) { target.click(); return true; }
+        const query = (s) => Array.from(document.querySelectorAll(s));
+        // Try exact match and then partial match
+        const elements = [...query('button'), ...query('a'), ...query('input[type="submit"]')];
+        const target = elements.find(el => {
+            const val = (el.innerText || el.value || "").trim().toLowerCase();
+            return val === text.toLowerCase() || val.includes(text.toLowerCase());
+        });
+
+        if (target) {
+            target.scrollIntoView();
+            target.click();
+            return true;
+        }
         return false;
     }, buttonText);
 
     if (clicked) {
         console.log(`[Oracle Vision] Clicked "${buttonText}" successfully!`);
-        await new Promise(r => setTimeout(r, 5000)); // Wait for action
+        await new Promise(r => setTimeout(r, 10000)); // Give time for transition
     } else {
-        console.log(`[Oracle Vision] Could not find "${buttonText}".`);
+        console.log(`[Oracle Vision] Could not find "${buttonText}" or similar element.`);
     }
 
     return { browser, page, clicked };
@@ -61,11 +73,24 @@ async function clickButtonOnPage(url, buttonText) {
 async function deployToRender(repoUrl) {
     const renderUrl = `https://dashboard.render.com/blueprints/new?repo=${repoUrl}`;
     console.log(`[Oracle Vision] Deploying to Render: ${repoUrl}`);
-    const { browser, page, clicked } = await clickButtonOnPage(renderUrl, 'Apply');
 
-    await new Promise(r => setTimeout(r, 8000)); // Wait for deploy to start
-    await browser.close();
-    return clicked;
+    // Try multiple possible labels for the "Apply" button
+    const labels = ["Apply", "Apply Spec", "Aplicar"];
+    let result = { clicked: false };
+
+    for (const label of labels) {
+        result = await clickButtonOnPage(renderUrl, label);
+        if (result.clicked) break;
+    }
+
+    if (!result.clicked) {
+        console.log(`[Oracle Vision] Manual review required. Keeping browser open.`);
+    } else {
+        console.log(`[Oracle Vision] Deployment initiated successfully.`);
+    }
+
+    // Do NOT close the browser - let the user finish if needed or see success
+    return result.clicked;
 }
 
 module.exports = { openURL, clickButtonOnPage, deployToRender, launchBrowser };
