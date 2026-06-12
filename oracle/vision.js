@@ -2,27 +2,29 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 
-// Opera GX user data directory (inherits your sessions/cookies)
+// Opera GX paths - uses your existing sessions/cookies (Render, GitHub, etc.)
+const OPERA_GX_EXE = 'C:\\Users\\Buba2\\AppData\\Local\\Programs\\Opera GX\\opera.exe';
 const OPERA_GX_PROFILE = 'C:\\Users\\Buba2\\AppData\\Roaming\\Opera Software\\Opera GX Stable';
 
 async function launchBrowser(useProfile = true) {
     const options = {
-        headless: false, // Show the browser window
+        headless: false,
         defaultViewport: null,
-        args: ['--start-maximized']
+        executablePath: OPERA_GX_EXE,
+        args: [
+            '--start-maximized',
+            '--no-first-run',
+            '--no-default-browser-check'
+        ]
     };
 
     if (useProfile) {
-        // Use the user's existing Opera/Chromium profile to inherit sessions
-        options.args.push(
-            `--user-data-dir=${OPERA_GX_PROFILE}`,
-            '--no-first-run',
-            '--no-default-browser-check'
-        );
+        // Inherit Opera GX cookies/sessions (logged-in to Render, GitHub, etc.)
+        options.args.push(`--user-data-dir=${OPERA_GX_PROFILE}`);
     }
 
     const browser = await puppeteer.launch(options);
-    const page = (await browser.pages())[0];
+    const page = (await browser.pages())[0] || await browser.newPage();
     return { browser, page };
 }
 
